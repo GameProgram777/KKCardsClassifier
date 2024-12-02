@@ -1,7 +1,7 @@
 
 # KKCardsClassifier
 
-A classification tool for Koikatsu cards that organizes files based on their type and additional metadata (e.g., timeline presence, animation type). This tool features a GUI for easy folder selection and classification and leverages the same detection methods used in the [Timeline Detector](https://github.com/GameProgram777/KKTimelineDetector).
+A classification tool for Koikatsu cards that organizes files based on their type and additional metadata (e.g., timeline presence, animation type). This tool features a GUI for easy folder selection and classification and leverages the same detection methods used in the [KK Timeline Detector](https://github.com/GameProgram777/KKTimelineDetector).
 
 ## Features
 
