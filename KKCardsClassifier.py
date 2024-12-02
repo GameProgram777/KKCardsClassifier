@@ -1,3 +1,4 @@
+
 import os
 import shutil
 from dataclasses import dataclass
@@ -74,55 +75,50 @@ class CardClassifier:
         for root, _, files in os.walk(self.input_folder):
             if "classified" not in root:
                 for file in files:
-                    if file.endswith(('.png')):
+                    if file.lower().endswith('.png'):
                         return True
         return False
+
     def check_card_type(self, file_path: str) -> CardInfo:
         try:
             with open(file_path, 'rb') as f:
                 content = f.read()
                 content_str = content.decode('utf-8', errors='ignore')
 
-            # 先檢查是否為KStudio
+            # Check if it's KStudio
             if "KStudio" in content_str:
                 card_info = CardInfo(type="KStudio")
                 
-                # 在這裡完成所有內容檢查
-                has_uppercase_timeline = "Timeline" in content_str
-                has_lowercase_timeline = "timeline" in content_str
-                duration = None
-
-                # 如果有大寫Timeline，檢查duration
-                if has_uppercase_timeline:
-                    if "duration" in content_str:
-                        dur_pos = content_str.find("duration")
-                        search_pos = dur_pos + len("duration")
-                        
-                        while search_pos < len(content_str):
-                            if content_str[search_pos].isdigit():
-                                num_start = search_pos
-                                num_end = num_start
-                                while num_end < len(content_str) and (content_str[num_end].isdigit() or content_str[num_end] == '.'):
-                                    num_end += 1
-                                try:
-                                    duration = float(content_str[num_start:num_end])
-                                except ValueError:
-                                    pass
-                                break
-                            search_pos += 1
-
-                # 設置timeline類型和duration
-                if has_uppercase_timeline:
-                    card_info.has_timeline = "dynamic"
-                    card_info.duration = duration
-                elif has_lowercase_timeline:
-                    card_info.has_timeline = "static"
+                # First check for "timeline" (case-sensitive)
+                if "timeline" in content_str:
+                    # Then check for "Timeline" to determine if it's dynamic or static
+                    if "Timeline" in content_str:
+                        card_info.has_timeline = "dynamic"
+                        # Check for duration only if it's dynamic
+                        if "duration" in content_str:
+                            dur_pos = content_str.find("duration")
+                            search_pos = dur_pos + len("duration")
+                            
+                            while search_pos < len(content_str):
+                                if content_str[search_pos].isdigit():
+                                    num_start = search_pos
+                                    num_end = num_start
+                                    while num_end < len(content_str) and (content_str[num_end].isdigit() or content_str[num_end] == '.'):
+                                        num_end += 1
+                                    try:
+                                        card_info.duration = float(content_str[num_start:num_end])
+                                    except ValueError:
+                                        pass
+                                    break
+                                search_pos += 1
+                    else:
+                        card_info.has_timeline = "static"
                 else:
                     card_info.has_timeline = "none"
                 
                 return card_info
 
-            # 如果不是KStudio，檢查其他類型
+            # Check other card types if not KStudio
             for base_type in CARD_TYPES[1:]:
                 if base_type in content_str:
                     return CardInfo(type=base_type)
@@ -132,18 +128,46 @@ class CardClassifier:
         except Exception as e:
             print(f"Error processing {file_path}: {str(e)}")
             return CardInfo(type="Unknown")
-        
 
+    def get_target_directory(self, card_info: CardInfo, base_dir: str) -> str:
+        """Determine the target directory based on card info."""
+        if card_info.type != "KStudio":
+            return os.path.join(base_dir, card_info.type)
+        
+        # Handle KStudio cards
+        kstudio_dir = os.path.join(base_dir, "KStudio")
+        os.makedirs(kstudio_dir, exist_ok=True)
+
+        if card_info.has_timeline == "none":
+            target_dir = os.path.join(kstudio_dir, "no_timeline")
+        else:
+            timeline_dir = os.path.join(kstudio_dir, "has_timeline")
+            os.makedirs(timeline_dir, exist_ok=True)
+            
+            if card_info.has_timeline == "static":
+                target_dir = os.path.join(timeline_dir, "static")
+            else:  # dynamic
+                dynamic_dir = os.path.join(timeline_dir, "dynamic")
+                os.makedirs(dynamic_dir, exist_ok=True)
+                
+                if card_info.duration is not None:
+                    if card_info.duration > 10:
+                        target_dir = os.path.join(dynamic_dir, "movie_duration_g_10s")
+                    else:
+                        target_dir = os.path.join(dynamic_dir, "GIF_duration_elt_10s")
+                else:
+                    target_dir = dynamic_dir
+            
+        return target_dir
 
     def classify_files(self, update_progress=None, update_status=None):
-        """Classifies files into different categories, including handling non-PNG files."""
-        # Create the classified folder
+        """Classifies files into different categories."""
         os.makedirs(self.output_folder, exist_ok=True)
 
         processed_files = 0
         total_files = 0
 
-        # Calculate total files (both PNG and non-PNG)
+        # Calculate total files
         for root, _, files in os.walk(self.input_folder):
             if "classified" not in root:
                 total_files += len(files)
@@ -154,38 +178,32 @@ class CardClassifier:
                 for file in files:
                     file_path = os.path.join(root, file)
 
-                    # Update status
                     if update_status:
                         update_status(f"Processing: {file}")
 
-                    # Check if file is a PNG
+                    # Check if file is a PNG (case-insensitive)
                     if not file.lower().endswith('.png'):
-                        # Handle non-PNG files
                         not_png_dir = os.path.join(self.output_folder, "not_png")
                         os.makedirs(not_png_dir, exist_ok=True)
                         shutil.move(file_path, os.path.join(not_png_dir, file))
                     else:
-                        # Process PNG files (example: categorize based on card type)
                         card_info = self.check_card_type(file_path)
-
+                        
                         if card_info.type == "Unknown":
                             target_dir = os.path.join(self.output_folder, "Unknown_cards")
                         else:
-                            target_dir = os.path.join(self.output_folder, card_info.type)
-
+                            target_dir = self.get_target_directory(card_info, self.output_folder)
+                        
                         os.makedirs(target_dir, exist_ok=True)
                         shutil.move(file_path, os.path.join(target_dir, file))
 
-                    # Update progress
                     processed_files += 1
                     if update_progress:
                         update_progress(int(processed_files / total_files * 100))
 
-        # Update status once done
         if update_status:
             update_status("Classification complete!")
         return True
-
 
 
 class App(tk.Tk):

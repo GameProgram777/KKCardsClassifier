@@ -1,10 +1,13 @@
 # 忽略 legacy 和 test_data 資料夾
 legacy/
 test_data/
+PNGdecoder/
+錯分/
 
 # 忽略特定檔案
 hook-tkinterdnd2.py
 KKCardsClassifier.exe
+
 
 # 忽略暫存或系統檔案
 *.pyc
