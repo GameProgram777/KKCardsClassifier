@@ -5,9 +5,7 @@ PNGdecoder/
 錯分/
 
 # 忽略特定檔案
-hook-tkinterdnd2.py
 KKCardsClassifier.exe
-
 
 # 忽略暫存或系統檔案
 *.pyc
