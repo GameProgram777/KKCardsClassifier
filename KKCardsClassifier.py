@@ -152,7 +152,7 @@ class CardClassifier:
                 
                 if card_info.duration is not None:
                     if card_info.duration > 10:
-                        target_dir = os.path.join(dynamic_dir, "movie_duration_g_10s")
+                        target_dir = os.path.join(dynamic_dir, "movie_duration_gt_10s")
                     else:
                         target_dir = os.path.join(dynamic_dir, "GIF_duration_elt_10s")
                 else:
